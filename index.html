@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-Commerce Website</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#eef2f7}
+
+header{
+background:#0d1117;color:#fff;padding:15px;
+display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap
+}
+
+header input{padding:8px;width:200px}
+
+.container{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;padding:20px
+}
+
+.card{
+background:#fff;
+padding:15px;
+border-radius:10px;
+text-align:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.1)
+}
+
+button{margin:5px;padding:6px 10px;cursor:pointer}
+
+#cart{
+position:fixed;right:-350px;top:0;width:320px;height:100%;
+background:#fff;transition:.3s;padding:15px;overflow:auto
+}
+#cart.active{right:0}
+
+.cart-header{display:flex;justify-content:space-between}
+
+.filters{padding:10px;display:flex;gap:10px;flex-wrap:wrap}
+
+.dark{background:#0d1117;color:#fff}
+.dark .card{background:#161b22;color:#fff}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>E-Commerce Website</h2>
+<input type="text" id="search" placeholder="Search..." onkeyup="searchProducts()">
+<div>
+<button onclick="toggleCart()">Cart (<span id="count">0</span>)</button>
+<button onclick="toggleDark()">🌙</button>
+</div>
+</header>
+
+<div class="filters">
+<select onchange="filterCategory(this.value)">
+<option value="all">All</option>
+<option value="fashion">Fashion</option>
+<option value="electronics">Electronics</option>
+<option value="home">Home</option>
+</select>
+
+<select onchange="sortProducts(this.value)">
+<option value="">Sort</option>
+<option value="low">Price Low</option>
+<option value="high">Price High</option>
+</select>
+
+<input type="number" placeholder="Min Price" id="min" onkeyup="priceFilter()">
+<input type="number" placeholder="Max Price" id="max" onkeyup="priceFilter()">
+</div>
+
+<div class="container" id="products"></div>
+
+<div id="cart">
+<div class="cart-header">
+<h3>Cart</h3>
+<button onclick="closeCart()">X</button>
+</div>
+<div id="cartItems"></div>
+<h3>Total: ₹<span id="total">0</span></h3>
+<button onclick="clearCart()">Clear Cart</button>
+</div>
+
+<script>
+let products=[
+{id:1,name:"Running Shoes",price:2000,cat:"fashion"},
+{id:2,name:"Smart Watch",price:1500,cat:"electronics"},
+{id:3,name:"Leather Bag",price:1800,cat:"fashion"},
+{id:4,name:"Headphones",price:2500,cat:"electronics"},
+{id:5,name:"T-Shirt",price:500,cat:"fashion"},
+{id:6,name:"Jeans",price:1200,cat:"fashion"},
+{id:7,name:"Jacket",price:3000,cat:"fashion"},
+{id:8,name:"Laptop",price:55000,cat:"electronics"},
+{id:9,name:"Keyboard",price:800,cat:"electronics"},
+{id:10,name:"Mouse",price:400,cat:"electronics"},
+{id:11,name:"Monitor",price:10000,cat:"electronics"},
+{id:12,name:"Sofa",price:20000,cat:"home"},
+{id:13,name:"Chair",price:1500,cat:"home"},
+{id:14,name:"Table",price:3000,cat:"home"},
+{id:15,name:"Lamp",price:700,cat:"home"},
+{id:16,name:"Bed",price:25000,cat:"home"},
+{id:17,name:"Cupboard",price:15000,cat:"home"},
+{id:18,name:"Curtains",price:1200,cat:"home"},
+{id:19,name:"Mixer",price:2500,cat:"home"},
+{id:20,name:"Fan",price:1800,cat:"home"},
+{id:21,name:"Mobile Phone",price:20000,cat:"electronics"},
+{id:22,name:"Tablet",price:15000,cat:"electronics"},
+{id:23,name:"Camera",price:35000,cat:"electronics"},
+{id:24,name:"Printer",price:8000,cat:"electronics"},
+{id:25,name:"Speaker",price:3000,cat:"electronics"},
+{id:26,name:"Charger",price:500,cat:"electronics"},
+{id:27,name:"Power Bank",price:1200,cat:"electronics"},
+{id:28,name:"Iron",price:1000,cat:"home"},
+{id:29,name:"Gas Stove",price:4000,cat:"home"},
+{id:30,name:"Refrigerator",price:30000,cat:"home"},
+{id:31,name:"Washing Machine",price:25000,cat:"home"},
+{id:32,name:"Casual Shoes",price:1800,cat:"fashion"},
+{id:33,name:"Formal Shoes",price:2200,cat:"fashion"},
+{id:34,name:"Sunglasses",price:900,cat:"fashion"},
+{id:35,name:"Cap",price:400,cat:"fashion"},
+{id:36,name:"Backpack",price:1600,cat:"fashion"},
+{id:37,name:"Wallet",price:600,cat:"fashion"},
+{id:38,name:"Belt",price:700,cat:"fashion"},
+{id:39,name:"Smart TV",price:40000,cat:"electronics"},
+{id:40,name:"Router",price:2000,cat:"electronics"},
+{id:41,name:"Drone",price:60000,cat:"electronics"},
+{id:42,name:"Game Console",price:45000,cat:"electronics"},
+{id:43,name:"VR Headset",price:30000,cat:"electronics"},
+{id:44,name:"Cooker",price:2000,cat:"home"},
+{id:45,name:"Knife Set",price:1500,cat:"home"},
+{id:46,name:"Dinner Set",price:2500,cat:"home"},
+{id:47,name:"Water Bottle",price:300,cat:"home"},
+{id:48,name:"Towel",price:400,cat:"home"},
+{id:49,name:"Blanket",price:1200,cat:"home"},
+{id:50,name:"Pillow",price:600,cat:"home"}
+];
+
+let cart=JSON.parse(localStorage.getItem("cart"))||[];
+
+function renderProducts(list=products){
+let box=document.getElementById("products");
+box.innerHTML="";
+list.forEach(p=>{
+box.innerHTML+=`
+<div class="card">
+<h3>${p.name}</h3>
+<p>₹${p.price}</p>
+<button onclick="addToCart(${p.id})">Add to Cart</button>
+<button onclick="quickView(${p.id})">View</button>
+</div>`;
+});
+}
+
+function addToCart(id){
+let item=cart.find(i=>i.id===id);
+if(item){item.qty++}
+else{
+let p=products.find(p=>p.id===id);
+cart.push({...p,qty:1});
+}
+save();updateCart();
+}
+
+function updateCart(){
+let box=document.getElementById("cartItems");
+box.innerHTML="";
+let total=0,count=0;
+
+cart.forEach(i=>{
+total+=i.price*i.qty;
+count+=i.qty;
+box.innerHTML+=`
+<div>
+${i.name} x${i.qty}
+<button onclick="changeQty(${i.id},'dec')">-</button>
+<button onclick="changeQty(${i.id},'inc')">+</button>
+<button onclick="remove(${i.id})">X</button>
+</div>`;
+});
+
+document.getElementById("total").innerText=total;
+document.getElementById("count").innerText=count;
+}
+
+function changeQty(id,type){
+let item=cart.find(i=>i.id===id);
+if(type==="inc") item.qty++;
+if(type==="dec"){item.qty--; if(item.qty<=0) remove(id)}
+save();updateCart();
+}
+
+function remove(id){
+cart=cart.filter(i=>i.id!==id);
+save();updateCart();
+}
+
+function clearCart(){
+cart=[];save();updateCart();
+}
+
+function save(){
+localStorage.setItem("cart",JSON.stringify(cart));
+}
+
+function searchProducts(){
+let val=document.getElementById("search").value.toLowerCase();
+renderProducts(products.filter(p=>p.name.toLowerCase().includes(val)));
+}
+
+function filterCategory(cat){
+if(cat==="all") renderProducts(products);
+else renderProducts(products.filter(p=>p.cat===cat));
+}
+
+function sortProducts(type){
+let sorted=[...products];
+if(type==="low") sorted.sort((a,b)=>a.price-b.price);
+if(type==="high") sorted.sort((a,b)=>b.price-a.price);
+renderProducts(sorted);
+}
+
+function priceFilter(){
+let min=document.getElementById("min").value||0;
+let max=document.getElementById("max").value||999999;
+renderProducts(products.filter(p=>p.price>=min && p.price<=max));
+}
+
+function toggleCart(){document.getElementById("cart").classList.toggle("active")}
+function closeCart(){document.getElementById("cart").classList.remove("active")}
+
+function toggleDark(){document.body.classList.toggle("dark")}
+
+function quickView(id){
+let p=products.find(p=>p.id===id);
+alert(p.name+" - ₹"+p.price);
+}
+
+renderProducts();
+updateCart();
+</script>
+
+</body>
+</html>
